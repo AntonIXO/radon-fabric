@@ -10,9 +10,9 @@ import com.google.gson.stream.JsonReader;
 import com.mojang.datafixers.DataFixer;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.JsonOps;
-import me.jellysquid.mods.radon.common.db.spec.impl.PlayerDatabaseSpecs;
 import me.jellysquid.mods.radon.common.db.DatabaseItem;
 import me.jellysquid.mods.radon.common.db.LMDBInstance;
+import me.jellysquid.mods.radon.common.db.spec.impl.PlayerDatabaseSpecs;
 import net.minecraft.SharedConstants;
 import net.minecraft.advancement.Advancement;
 import net.minecraft.advancement.AdvancementProgress;
@@ -44,13 +44,13 @@ public abstract class MixinPlayerAdvancementTracker implements DatabaseItem {
 
     @Shadow @Final private static Gson GSON;
 
-    @Shadow @Final private static Logger LOGGER;
+    @Final private static Logger LOGGER;
 
     @Shadow private ServerPlayerEntity owner;
 
     @Shadow @Final private static TypeToken<Map<Identifier, AdvancementProgress>> JSON_TYPE;
 
-    @Shadow @Final private DataFixer field_25324;
+    @Shadow @Final private DataFixer dataFixer;
 
     @Shadow protected abstract void initProgress(Advancement advancement, AdvancementProgress progress);
 
@@ -69,9 +69,9 @@ public abstract class MixinPlayerAdvancementTracker implements DatabaseItem {
 
     @Overwrite
     private void load(ServerAdvancementLoader advancementLoader) {
-        String json = this.storage
+        String json = String.valueOf(this.storage
                 .getDatabase(PlayerDatabaseSpecs.ADVANCEMENTS)
-                .getValue(this.getUuid());
+                .getValue(this.getUuid()));
 
         if (json != null) {
             try {
@@ -84,7 +84,7 @@ public abstract class MixinPlayerAdvancementTracker implements DatabaseItem {
                     dynamic = dynamic.set("DataVersion", dynamic.createInt(1343));
                 }
 
-                dynamic = this.field_25324.update(DataFixTypes.ADVANCEMENTS.getTypeReference(), dynamic, dynamic.get("DataVersion").asInt(0), SharedConstants.getGameVersion().getWorldVersion());
+                dynamic = this.dataFixer.update(DataFixTypes.ADVANCEMENTS.getTypeReference(), dynamic, dynamic.get("DataVersion").asInt(0), SharedConstants.getGameVersion().getWorldVersion());
                 dynamic = dynamic.remove("DataVersion");
 
                 Map<Identifier, AdvancementProgress> map = GSON.getAdapter(JSON_TYPE)
@@ -154,7 +154,7 @@ public abstract class MixinPlayerAdvancementTracker implements DatabaseItem {
     public void setStorage(LMDBInstance storage) {
         this.storage = storage;
 
-        this.load(this.owner.getServerWorld().getServer().getAdvancementLoader());
+        this.load(this.owner.getWorld().getServer().getAdvancementLoader());
     }
 
     @Override
