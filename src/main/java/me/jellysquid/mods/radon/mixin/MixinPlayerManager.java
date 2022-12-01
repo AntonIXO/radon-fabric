@@ -33,7 +33,7 @@ public class MixinPlayerManager implements PlayerDatabaseAccess {
     private LMDBInstance storage;
 
     @Inject(method = "<init>", at = @At("RETURN"))
-    private void reinit(MinecraftServer server, DynamicRegistryManager.Impl registryManager, WorldSaveHandler saveHandler, int maxPlayers, CallbackInfo ci) {
+    private void reinit(MinecraftServer server, DynamicRegistryManager.Immutable registryManager, WorldSaveHandler saveHandler, int maxPlayers, CallbackInfo ci) {
         File dir = server.getSavePath(WorldSavePath.ADVANCEMENTS).getParent().toFile();
 
         this.storage = new LMDBInstance(dir, "players", new DatabaseSpec[] {

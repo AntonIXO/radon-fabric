@@ -4,7 +4,7 @@ import com.mojang.datafixers.DataFixer;
 import me.jellysquid.mods.radon.common.ChunkDatabaseAccess;
 import me.jellysquid.mods.radon.common.db.LMDBInstance;
 import me.jellysquid.mods.radon.common.db.spec.impl.WorldDatabaseSpecs;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.FeatureUpdater;
 import net.minecraft.world.storage.StorageIoWorker;
@@ -13,10 +13,16 @@ import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @SuppressWarnings("OverwriteAuthorRequired")
 @Mixin(VersionedChunkStorage.class)
@@ -33,7 +39,7 @@ public class MixinVersionedChunkStorage implements ChunkDatabaseAccess {
     private LMDBInstance storage;
 
     @Inject(method = "<init>", at = @At("RETURN"))
-    private void reinit(File file, DataFixer dataFixer, boolean bl, CallbackInfo ci) {
+    private void reinit(Path directory, DataFixer dataFixer, boolean dsync, CallbackInfo ci) {
         try {
             this.worker.close();
         } catch (IOException e) {
@@ -43,14 +49,14 @@ public class MixinVersionedChunkStorage implements ChunkDatabaseAccess {
         this.worker = null;
     }
 
-    @Overwrite
-    public @Nullable CompoundTag getNbt(ChunkPos chunkPos) {
+    @Inject(method = "getNbt", at = @At("RETURN"), cancellable = true)
+    public NbtCompound getNbt(ChunkPos chunkPos, CallbackInfoReturnable<CompletableFuture<Optional<NbtCompound>>> cir) {
         return this.storage.getDatabase(WorldDatabaseSpecs.CHUNK_DATA)
                 .getValue(chunkPos);
     }
 
     @Overwrite
-    public void setTagAt(ChunkPos chunkPos, CompoundTag compoundTag) {
+    public void setNbt(ChunkPos chunkPos, NbtCompound compoundTag) {
         this.storage
                 .getTransaction(WorldDatabaseSpecs.CHUNK_DATA)
                 .add(chunkPos, compoundTag);
